@@ -102,5 +102,8 @@ onBeforeUnmount(() => {
   width: 600px;
   height: 400px;
   border: 1px solid #ccc;
+  text-align: left;
+
+  /* 주석 */
 }
 </style>
