@@ -1,54 +1,106 @@
 <template>
-  <div class="w-screen h-screen flex flex-col p-4">
-    <h2 class="text-xl font-bold mb-2">Room: {{ roomId }}</h2>
-
-    <textarea
-      v-model="code"
-      @input="onCodeChange"
-      class="flex-grow w-full p-4 font-mono text-base resize-none border border-gray-300 rounded"
-    ></textarea>
+  <div>
+    <h2 style="text-align: left; margin-bottom: 12px;">{{ roomId }}번 방</h2>
+    <div ref="editorContainer" class="editor-container"></div>
   </div>
 </template>
 
-
 <script setup>
-import { onMounted, ref } from 'vue'
+import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute } from 'vue-router'
+import { EditorView, keymap, highlightActiveLine, lineNumbers } from '@codemirror/view'
+import { EditorState } from '@codemirror/state'
+import { defaultKeymap } from '@codemirror/commands'
+import { java } from '@codemirror/lang-java'
 
 const route = useRoute()
-const roomId = route.query.roomId
-const userId = route.query.userId
+const roomId = ref(route.query.roomId || 'unknown')
+const editorContainer = ref(null)
 
-const code = ref('')
-let socket
+let editorView = null
+let websocket = null
+let suppressUpdate = false // 무한루프 방지
 
-const onCodeChange = () => {
-  if (socket && socket.readyState === WebSocket.OPEN) {
-    socket.send(JSON.stringify({
-      type: 'codeChange',
-      roomId,
-      userId,
-      content: code.value,
-    }))
+const initialCode = `public class HelloWorld {
+  public static void main(String[] args) {
+    System.out.println("Hello, CodeMirror!");
   }
-}
+}`
 
-onMounted(() => {
-  socket = new WebSocket('ws://localhost:8080/ws/code')
+// ✅ WebSocket 연결 및 수신 처리
+function setupWebSocket() {
+  const wsProtocol = location.protocol === 'https:' ? 'wss' : 'ws'
+  const wsUrl = `${wsProtocol}://${location.hostname}:8080/ws/code?roomId=${roomId.value}`
 
-  socket.onmessage = (event) => {
-    const msg = JSON.parse(event.data)
-    if (msg.type === 'codeChange' && msg.userId !== userId) {
-      code.value = msg.content
+  websocket = new WebSocket(wsUrl)
+
+  websocket.onopen = () => {
+    console.log('✅ WebSocket 연결됨')
+  }
+
+  websocket.onmessage = (event) => {
+    const data = JSON.parse(event.data)
+    if (data.type === 'codeChange' && !suppressUpdate) {
+      suppressUpdate = true
+      const transaction = editorView.state.update({
+        changes: { from: 0, to: editorView.state.doc.length, insert: data.code }
+      })
+      editorView.update([transaction])
+      suppressUpdate = false
     }
   }
 
-  socket.onopen = () => {
-    console.log('WebSocket 연결됨')
+  websocket.onerror = (err) => {
+    console.error('❌ WebSocket 오류:', err)
   }
 
-  socket.onerror = (e) => {
-    console.error('WebSocket 에러', e)
+  websocket.onclose = () => {
+    console.warn('🔌 WebSocket 연결 종료됨')
   }
+}
+
+// ✅ 에디터 생성 및 업데이트 리스너
+onMounted(() => {
+  setupWebSocket()
+
+  const updateListener = EditorView.updateListener.of(update => {
+    if (update.docChanged && !suppressUpdate) {
+      const newCode = update.state.doc.toString()
+      if (websocket?.readyState === WebSocket.OPEN) {
+        websocket.send(JSON.stringify({
+          type: 'codeChange',
+          code: newCode,
+          roomId: roomId.value
+        }))
+      }
+    }
+  })
+
+  editorView = new EditorView({
+    state: EditorState.create({
+      doc: initialCode,
+      extensions: [
+        java(),
+        lineNumbers(),
+        highlightActiveLine(),
+        keymap.of(defaultKeymap),
+        updateListener
+      ]
+    }),
+    parent: editorContainer.value
+  })
+})
+
+onBeforeUnmount(() => {
+  if (editorView) editorView.destroy()
+  if (websocket) websocket.close()
 })
 </script>
+
+<style scoped>
+.editor-container {
+  width: 600px;
+  height: 400px;
+  border: 1px solid #ccc;
+}
+</style>

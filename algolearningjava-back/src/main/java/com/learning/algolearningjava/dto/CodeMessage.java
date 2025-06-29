@@ -13,5 +13,5 @@ public class CodeMessage {
     private String type;
     private String roomId;
     private String userId;
-    private String content;
+    private String code;
 }
