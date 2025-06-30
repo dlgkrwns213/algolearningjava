@@ -71,7 +71,7 @@ public class RoomService {
     }
 
     private void saveCodeToDB(String roomId, String content) {
-        System.out.println("Saving to DB: roomId=" + roomId + ", content length=" + content.length());
+//        System.out.println("Saving to DB: roomId=" + roomId + ", content length=" + content.length());
         try {
             roomDocumentRepository.save(
                     RoomDocument.builder()
@@ -80,9 +80,9 @@ public class RoomService {
                             .updateAt(LocalDateTime.now())
                             .build()
             );
-            System.out.println("DB 저장 완료");
+//            System.out.println("DB 저장 완료");
         } catch (Exception e) {
-            System.err.println("DB 저장 실패: " + e.getMessage());
+//            System.err.println("DB 저장 실패: " + e.getMessage());
             e.printStackTrace();
         }
     }
