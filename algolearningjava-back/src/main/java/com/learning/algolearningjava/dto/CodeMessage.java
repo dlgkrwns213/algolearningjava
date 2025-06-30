@@ -1,17 +1,17 @@
 package com.learning.algolearningjava.dto;
 
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import lombok.*;
 
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
+@Builder
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class CodeMessage {
     private String type;
     private String roomId;
     private String userId;
-    private String code;
+    private String content;
 }

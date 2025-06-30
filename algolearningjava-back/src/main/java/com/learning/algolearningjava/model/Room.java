@@ -1,6 +1,8 @@
 package com.learning.algolearningjava.model;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.Getter;
+import lombok.Setter;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 
@@ -13,14 +15,20 @@ import java.util.Set;
 @Getter
 public class Room {
     private final String roomId;
+
+    @Getter
     private final Map<String, WebSocketSession> participants = new HashMap<>();
     private final Set<String> writableUsers = new HashSet<>();
+
+    @Getter
+    @Setter
+    private String code = "";
 
     public Room(String roomId) {
         this.roomId = roomId;
     }
 
-    public void join(String userId, WebSocketSession session) {
+    public void join(String userId, WebSocketSession session) throws IOException {
         participants.put(userId, session);
     }
 
@@ -41,12 +49,11 @@ public class Room {
         writableUsers.remove(userId);
     }
 
-    public void broadcast(WebSocketSession sender, String message) throws IOException {
+    public void broadcast(String json) throws IOException {
         for (WebSocketSession session : participants.values()) {
-            if (!session.equals(sender) && session.isOpen()) {
-                session.sendMessage(new TextMessage(message));
+            if (session.isOpen()) {
+                session.sendMessage(new TextMessage(json));
             }
         }
     }
-
 }

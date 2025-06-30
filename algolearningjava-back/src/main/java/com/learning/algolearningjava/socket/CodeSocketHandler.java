@@ -5,6 +5,7 @@ import com.learning.algolearningjava.dto.CodeMessage;
 import com.learning.algolearningjava.model.Room;
 import com.learning.algolearningjava.service.RoomService;
 import lombok.RequiredArgsConstructor;
+import org.bson.types.Code;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.WebSocketHandler;
@@ -22,44 +23,40 @@ public class CodeSocketHandler implements WebSocketHandler {
 
     @Override
     public void afterConnectionEstablished(org.springframework.web.socket.WebSocketSession session) throws Exception {
-        // HttpSession에서 복사된 속성 확인
-        String roomId = (String) session.getAttributes().get("roomId");
-        String userId = (String) session.getAttributes().get("userId");
+        String uri = session.getUri().toString();
+        String roomId = getQueryParam(uri, "roomId");
+        String userId = getQueryParam(uri, "userId");
+
+        System.out.println("✅ WebSocket 연결됨: roomId=" + roomId + ", userId=" + userId);
+
+
+        if (roomId == null || userId == null) {
+            session.close(CloseStatus.BAD_DATA);
+            return;
+        }
+
+        session.getAttributes().put("roomId", roomId);
+        session.getAttributes().put("userId", userId);
 
         System.out.println("WebSocket 연결됨: roomId=" + roomId + ", userId=" + userId);
 
-        // RoomService를 통해 방에 참가
-        Room room = roomService.getOrCreateRoom(roomId);
-        room.join(userId, session);
+        CodeMessage joinMsg = CodeMessage.builder()
+                .roomId(roomId)
+                .userId(userId)
+                .type("join")
+                .build();
+
+        roomService.processMessage(session, joinMsg );
     }
 
     @Override
     public void handleMessage(WebSocketSession session, WebSocketMessage<?> message) throws Exception {
+        System.out.println("🔥 WebSocket 메시지 수신됨: " + message.getPayload());
+
         String payload = message.getPayload().toString();
-        CodeMessage msg = objectMapper.readValue(payload, CodeMessage.class);
+        CodeMessage codeMessage = objectMapper.readValue(payload, CodeMessage.class);
 
-        String roomId = msg.getRoomId();
-        Room room = roomService.getOrCreateRoom(roomId);
-
-        switch (msg.getType()) {
-            case "codeChange":
-                // 같은 방에 있는 다른 사용자에게 코드 변경 내용 전송
-                room.broadcast(session, payload);
-                break;
-
-            case "grantWrite":
-                room.grantWrite(msg.getUserId());
-                room.broadcast(session, payload); // 권한 부여 알림
-                break;
-
-            case "revokeWrite":
-                room.revokeWrite(msg.getUserId());
-                room.broadcast(session, payload); // 권한 회수 알림
-                break;
-
-            default:
-                System.out.println("알 수 없는 메시지 타입: " + msg.getType());
-        }
+        roomService.processMessage(session, codeMessage);
     }
 
 
@@ -76,5 +73,19 @@ public class CodeSocketHandler implements WebSocketHandler {
     @Override
     public boolean supportsPartialMessages() {
         return false;
+    }
+
+    private String getQueryParam(String uri, String key) {
+        String[] parts = uri.split("\\?");
+
+        if (parts.length < 2) return null;
+
+        String[] params = parts[1].split("&");
+        for (String param : params) {
+            String[] keyValue = param.split("=");
+            if (keyValue.length == 2 && keyValue[0].equals(key)) return keyValue[1];
+        }
+
+        return null;
     }
 }
