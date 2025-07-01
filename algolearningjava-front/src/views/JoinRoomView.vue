@@ -26,11 +26,15 @@ const joinRoom = async () => {
       userName: userName.value,
     }, { withCredentials: true })
 
+    // localStorage에 저장
+    localStorage.setItem('userId', userId.value)
+
     router.push({ name: 'editor', query: { roomId: roomId.value, userId: userId.value } })
   } catch (e) {
     console.error('입장 실패:', e)
   }
 }
+
 </script>
 
 <style scoped>
