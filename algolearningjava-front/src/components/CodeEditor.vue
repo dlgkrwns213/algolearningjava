@@ -4,7 +4,7 @@
       <h2 style="text-align: left; margin-bottom: 12px;">{{ roomId }}번 방</h2>
 
       <div v-if="hasWritePermission" class="status green">✍️ 코드 편집 권한이 있습니다<span v-if="isOwner"> (방장)</span></div>
-      <div v-else class="status gray">🔒 편집 권한이 없습니다<span v-if="isOwner"> (방장)</span></div>
+      <div v-else class="status gray">🔒 편집 권한이 없습니다</div>
 
       <div ref="editorContainer" class="editor-container"></div>
     </div>
@@ -129,9 +129,7 @@ function setupWebSocket() {
         break
 
       case 'participantList':
-        console.log(msg);
         participants.value = msg.participants || []
-        console.log(participants.value);
         break
     }
   }
