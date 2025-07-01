@@ -11,7 +11,6 @@ import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketSession;
 
 import java.time.LocalDateTime;
-import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
@@ -24,7 +23,7 @@ public class RoomService {
     private final RoomDocumentRepository roomDocumentRepository;
 
     public void processMessage(WebSocketSession session, CodeMessage msg) throws Exception {
-        System.out.println("📩 수신 메시지: " + msg.getType() + ", from: " + msg.getUserId());
+//        System.out.println("📩 수신 메시지: " + msg.getType() + ", from: " + msg.getUserId());
 
         Room room = rooms.computeIfAbsent(msg.getRoomId(), id -> {
             Room r = new Room(id, msg.getUserId());
@@ -40,7 +39,6 @@ public class RoomService {
         switch (msg.getType()) {
             case "join":
                 room.join(msg.getUserId(), session);
-                System.out.println(room.getWritableUsers());
 
                 // 1. 현재 코드 전송
                 CodeMessage initCodeMessage = CodeMessage.builder()

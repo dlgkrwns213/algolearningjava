@@ -41,23 +41,13 @@ public class Room {
     }
 
     public void addWritableUser(String requesterId, String targetUserId) {
-        System.out.println("🛠️ 권한 부여 요청: " + requesterId + " → " + targetUserId);
-        if (isOwner(requesterId) && participants.containsKey(targetUserId)) {
+        if (isOwner(requesterId) && participants.containsKey(targetUserId))
             writableUsers.add(targetUserId);
-            System.out.println("✅ 권한 부여 완료: " + targetUserId);
-        } else {
-            System.out.println("❌ 권한 부여 실패 - 요청자: " + requesterId + ", 대상 존재 여부: " + participants.containsKey(targetUserId));
-        }
     }
 
     public void removeWritableUser(String requesterId, String targetUserId) {
-        System.out.println("🧹 권한 회수 요청: " + requesterId + " → " + targetUserId);
-        if (isOwner(requesterId) && participants.containsKey(targetUserId)) {
+        if (isOwner(requesterId) && participants.containsKey(targetUserId))
             writableUsers.remove(targetUserId);
-            System.out.println("✅ 권한 회수 완료: " + targetUserId);
-        } else {
-            System.out.println("❌ 권한 회수 실패 - 요청자: " + requesterId + ", 대상 존재 여부: " + participants.containsKey(targetUserId));
-        }
     }
 
 
