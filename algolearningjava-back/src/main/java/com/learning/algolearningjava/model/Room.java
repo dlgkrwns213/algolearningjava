@@ -51,13 +51,26 @@ public class Room {
     }
 
 
-    public void join(String userId, WebSocketSession session) throws IOException {
+    public boolean join(String userId, WebSocketSession session) throws IOException {
+        if (participants.containsKey(userId)) {
+            if (session.isOpen()) {
+                session.sendMessage(new TextMessage(
+                        "{\"type\":\"error\",\"message\":\"이미 접속 중인 사용자입니다.\"}"
+                ));
+            }
+
+            session.close();
+            return true;
+        }
+
         participants.put(userId, session);
 
         if (ownerId == null) {
             ownerId = userId;
             writableUsers.add(userId);
         }
+
+        return false;
     }
 
     public void leave(String userId) {

@@ -38,7 +38,8 @@ public class RoomService {
         CodeMessage newMsg;
         switch (msg.getType()) {
             case "join":
-                room.join(msg.getUserId(), session);
+                if (room.join(msg.getUserId(), session))
+                    return;
 
                 // 1. 현재 코드 전송
                 CodeMessage initCodeMessage = CodeMessage.builder()
@@ -78,7 +79,6 @@ public class RoomService {
                 broadcastRoom(room, writableListMessage);
                 break;
             case "codeChange":
-                // TODO: writable user만 사용할 수 있도록 수정할 것
                 if (room.isWritable(msg.getUserId())) {
                     room.setCode(msg.getContent());
                     saveCodeToDB(msg.getRoomId(), msg.getContent());

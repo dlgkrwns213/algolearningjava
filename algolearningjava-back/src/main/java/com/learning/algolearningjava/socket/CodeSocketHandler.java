@@ -26,7 +26,6 @@ public class CodeSocketHandler implements WebSocketHandler {
         String uri = session.getUri().toString();
         String roomId = getQueryParam(uri, "roomId");
         String userId = getQueryParam(uri, "userId");
-//        System.out.println("✅ WebSocket 연결됨: roomId=" + roomId + ", userId=" + userId);
 
 
         if (roomId == null || userId == null) {
@@ -36,19 +35,11 @@ public class CodeSocketHandler implements WebSocketHandler {
 
         session.getAttributes().put("roomId", roomId);
         session.getAttributes().put("userId", userId);
-
-        CodeMessage joinMsg = CodeMessage.builder()
-                .roomId(roomId)
-                .userId(userId)
-                .type("join")
-                .build();
-
-        roomService.processMessage(session, joinMsg );
     }
 
     @Override
     public void handleMessage(WebSocketSession session, WebSocketMessage<?> message) throws Exception {
-//        System.out.println("🔥 WebSocket 메시지 수신됨: " + message.getPayload());
+        System.out.println("🔥 WebSocket 메시지 수신됨: " + message.getPayload());
         String payload = message.getPayload().toString();
         CodeMessage codeMessage = objectMapper.readValue(payload, CodeMessage.class);
 
