@@ -12,9 +12,11 @@
     "@codemirror/autocomplete": "^6.18.6",
     "@codemirror/commands": "^6.8.1",
     "@codemirror/lang-java": "^6.0.2",
+    "@codemirror/language": "^6.11.2",
     "@codemirror/state": "^6.5.2",
     "@codemirror/view": "^6.38.0",
     "axios": "^1.10.0",
+    "codemirror": "^6.0.2",
     "router": "^2.2.0",
     "vue": "^3.5.17",
     "vue-router": "^4.5.1"

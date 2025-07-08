@@ -1,13 +1,23 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import JoinRoomView from '../views/JoinRoomView.vue'
-import CodeEditor from '../components/CodeEditor.vue'
+import JoinPage from '../views/JoinRoomView.vue'    
+import CodeEditor from '../components/CodeEditor.vue' 
 
 const routes = [
-  { path: '/', component: JoinRoomView },
-  { path: '/editor', name: 'editor', component: CodeEditor },
+  {
+    path: '/',
+    name: 'home',
+    component: JoinPage
+  },
+  {
+    path: '/editor',
+    name: 'editor',
+    component: CodeEditor
+  }
 ]
 
-export default createRouter({
+const router = createRouter({
   history: createWebHistory(),
-  routes,
+  routes
 })
+
+export default router

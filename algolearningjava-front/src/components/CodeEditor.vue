@@ -34,7 +34,6 @@
   </div>
 </template>
 
-
 <script setup>
 import { ref, onMounted, onBeforeUnmount, computed } from 'vue'
 import { useRoute } from 'vue-router'
@@ -51,7 +50,61 @@ import {
 } from '@codemirror/state'
 import { defaultKeymap } from '@codemirror/commands'
 import { java } from '@codemirror/lang-java'
+import { autocompletion } from '@codemirror/autocomplete'
+import { basicSetup } from 'codemirror'
+import { insertTab } from '@codemirror/commands'
 
+// ✅ 정적 Java 키워드 목록
+const staticJavaKeywords = [
+  "abstract", "assert", "boolean", "break", "byte", "case", "catch",
+  "char", "class", "const", "continue", "default", "do", "double",
+  "else", "enum", "extends", "final", "finally", "float", "for",
+  "goto", "if", "implements", "import", "instanceof", "int",
+  "interface", "long", "native", "new", "null", "package",
+  "private", "protected", "public", "return", "short", "static",
+  "strictfp", "super", "switch", "synchronized", "this", "throw",
+  "throws", "transient", "try", "void", "volatile", "while",
+  "System", "out", "println", "Scanner", "List", "ArrayList", "String", "Main",
+  "java", "util"
+]
+
+// ✅ 변수명 추출
+function extractVariableNames(code) {
+  const regex = /\b(?:int|double|float|char|boolean|long|short|byte|String|var)\s+([a-zA-Z_][a-zA-Z0-9_]*)/g
+  const result = new Set()
+  let match
+  while ((match = regex.exec(code)) !== null) {
+    result.add(match[1])
+  }
+  return Array.from(result)
+}
+
+// ✅ 자동완성 구성
+function dynamicCompletion(context) {
+  const word = context.matchBefore(/\w+/)
+  if (!word) return null
+
+  const code = context.state.doc.toString()
+  const variables = extractVariableNames(code)
+
+  const suggestions = [
+    ...staticJavaKeywords.map(k => ({ label: k, type: 'keyword' })),
+    ...variables.map(v => ({ label: v, type: 'variable' }))
+  ]
+
+  return {
+    from: word.from,
+    options: suggestions,
+    validFor: /^\w*$/
+  }
+}
+
+const myCompletions = autocompletion({
+  override: [dynamicCompletion],
+  activateOnTyping: true // 자동추천
+})
+
+// ✅ 기본 변수
 const route = useRoute()
 const roomId = ref(route.query.roomId || 'unknown')
 const userId = localStorage.getItem('userId') || 'user-9999'
@@ -60,7 +113,6 @@ const editorContainer = ref(null)
 let editorView = null
 let websocket = null
 let suppressUpdate = false
-
 const editableCompartment = new Compartment()
 
 const initialCode = ref('// 로딩 중...')
@@ -70,6 +122,31 @@ const writableUserIds = ref([]) // string[]
 
 const isOwner = computed(() => userId === ownerId.value)
 const hasWritePermission = computed(() => writableUserIds.value.includes(userId))
+
+const updateListener = EditorView.updateListener.of(update => {
+  if (update.docChanged && hasWritePermission.value) {
+    const newCode = update.state.doc.toString()
+
+    if (websocket?.readyState === WebSocket.OPEN) {
+      websocket.send(JSON.stringify({
+        type: 'codeChange',
+        content: newCode,
+        roomId: roomId.value,
+        userId: userId
+      }))
+    }
+
+    console.log('[DB 저장 요청] 코드 길이:', newCode.length)
+    axios.put(`http://localhost:8080/api/room/${roomId.value}`, {
+      code: newCode
+    }).then(() => {
+      console.log('[DB 저장 성공]')
+    }).catch(err => {
+      console.error('❌ 코드 저장 실패:', err)
+    })
+  }
+})
+
 
 async function fetchInitialCode() {
   try {
@@ -97,7 +174,6 @@ function setupWebSocket() {
   websocket = new WebSocket(wsUrl)
 
   websocket.onopen = () => {
-    console.log('✅ WebSocket 연결됨')
     websocket.send(JSON.stringify({
       type: 'join',
       roomId: roomId.value,
@@ -110,13 +186,14 @@ function setupWebSocket() {
 
     switch (msg.type) {
       case 'codeChange':
-        if (!suppressUpdate) {
+      if (!suppressUpdate && editorView) {
           suppressUpdate = true
           editorView.dispatch({
-            changes: { from: 0, to: editorView.state.doc.length, insert: msg.content }
-          })
+            changes: { from: 0, to: editorView.state.doc.length, insert: msg.content },
+            selection: 1})
           setTimeout(() => suppressUpdate = false, 50)
         }
+        
         break
 
       case 'writerListChanged':
@@ -139,7 +216,7 @@ function setupWebSocket() {
   }
 
   websocket.onclose = (event) => {
-    console.warn('🔌 WebSocket 연결 종료됨', event.code, event.reason)
+    console.warn('🔌 WebSocket 종료:', event.code, event.reason)
   }
 }
 
@@ -154,30 +231,23 @@ function updateEditorEditable() {
 onMounted(async () => {
   await fetchInitialCode()
 
-  const updateListener = EditorView.updateListener.of(update => {
-    if (update.docChanged && !suppressUpdate && hasWritePermission.value) {
-      const newCode = update.state.doc.toString()
-      if (websocket?.readyState === WebSocket.OPEN) {
-        websocket.send(JSON.stringify({
-          type: 'codeChange',
-          content: newCode,
-          roomId: roomId.value,
-          userId: userId
-        }))
-      }
-    }
-  })
+  console.log('🎯 코드 확인:', initialCode.value)
 
   editorView = new EditorView({
     state: EditorState.create({
       doc: initialCode.value,
       extensions: [
+        basicSetup,
         java(),
         lineNumbers(),
         highlightActiveLine(),
-        keymap.of(defaultKeymap),
-        updateListener,
-        editableCompartment.of(EditorView.editable.of(false))
+        keymap.of([
+          ...defaultKeymap,
+          { key: "Tab", run: insertTab } // Tab 키 삽입 지원
+        ]),
+        editableCompartment.of(EditorView.editable.of(false)),
+        myCompletions,
+        updateListener
       ]
     }),
     parent: editorContainer.value
@@ -191,6 +261,7 @@ onBeforeUnmount(() => {
   if (websocket) websocket.close()
 })
 </script>
+
 
 <style scoped>
 .editor-container {
